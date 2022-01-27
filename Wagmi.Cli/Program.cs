@@ -42,7 +42,7 @@ namespace Wagmi.Cli
             var topResult = investmentResults.OrderByDescending(i => i.Usd).First();
 
             Console.WriteLine("===== TOP RESULT =====");
-            Console.WriteLine($"Best result: {topResult.Usd}");
+            Console.WriteLine($"Best result: {topResult.Usd.ToString("N2")} USD");
             Console.WriteLine($"Low MA: {topResult.LowMa}");
             Console.WriteLine($"High MA: {topResult.HighMa}");
             Console.WriteLine();
@@ -77,13 +77,13 @@ namespace Wagmi.Cli
                 {
                     btcHolding = usdHolding / currentCandle.Close;
                     usdHolding = 0;
-                    investmentResult.Trades.Add(new Trade() { BtcAquired = btcHolding, UsdAquired = usdHolding, Price = currentCandle.Close, TradeDate = currentCandle.Time });
+                    investmentResult.Trades.Add(new Trade() { BtcAquired = btcHolding, UsdAquired = usdHolding, Price = currentCandle.Close, TradeDate = currentCandle.Time, TradeType = TradeType.Buy });
                 }
                 else if (previousCandle.CurrentPosition == Position.Long && currentCandle.CurrentPosition == Position.Short && btcHolding > 0)
                 {
                     usdHolding = currentCandle.Close * btcHolding;
                     btcHolding = 0;
-                    investmentResult.Trades.Add(new Trade() { BtcAquired = btcHolding, UsdAquired = usdHolding, Price = currentCandle.Close, TradeDate = currentCandle.Time });
+                    investmentResult.Trades.Add(new Trade() { BtcAquired = btcHolding, UsdAquired = usdHolding, Price = currentCandle.Close, TradeDate = currentCandle.Time, TradeType = TradeType.Sell });
                 }
             }
 
