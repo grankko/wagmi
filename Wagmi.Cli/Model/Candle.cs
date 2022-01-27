@@ -19,11 +19,16 @@ namespace Wagmi.Cli.Model
 
         public Position CurrentPosition { get; set; }
 
-        public Candle(int lowMaDays, int highMaDays)
+        public void InitializeMa(int lowMaDays, int highMaDays)
         {
             LowMA = new MovingAverage(lowMaDays);
             HighMA = new MovingAverage(highMaDays);
             CurrentPosition = Position.Undecided;
+        }
+
+        public override string ToString()
+        {
+            return $"{Time.ToShortDateString} - {Average}";
         }
     }
 
