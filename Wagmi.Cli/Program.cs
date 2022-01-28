@@ -44,9 +44,7 @@ namespace Wagmi.Cli
                     var result = RunAnalysis(candles);
                     investmentResults.Add(result);
 
-                    Console.WriteLine($"Low MA: {result.LowMa}");
-                    Console.WriteLine($"High MA: {result.HighMa}");
-                    Console.WriteLine($"Result: {result.Usd}");
+                    Console.WriteLine($"Analyzed {result.LowMa}/{result.HighMa}. Yield: {result.Usd.ToString("N2")} USD - {result.Btc.ToString("N2")} BTC");
                     Console.WriteLine();
 
                 }
