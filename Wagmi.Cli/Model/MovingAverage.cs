@@ -10,9 +10,9 @@ namespace Wagmi.Cli.Model
     {
         private List<Candle> History { get; set; }
         public int MovingAverageDays { get; private set; }
-        public double Value { get {
-                return History.Average(c => c.Average);
-            }
+        public double Value
+        {
+            get => History.Average(c => c.Average);
         }
 
         public MovingAverage(int days)

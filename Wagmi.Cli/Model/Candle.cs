@@ -14,15 +14,15 @@ namespace Wagmi.Cli.Model
         public double Close { get; set; }
         public double Average { get; set; }
 
-        public MovingAverage LowMA { get; private set; }
-        public MovingAverage HighMA { get; private set; }
+        public MovingAverage? LowMa { get; private set; }
+        public MovingAverage? HighMa { get; private set; }
 
         public Position CurrentPosition { get; set; }
 
         public void InitializeMa(int lowMaDays, int highMaDays)
         {
-            LowMA = new MovingAverage(lowMaDays);
-            HighMA = new MovingAverage(highMaDays);
+            LowMa = new MovingAverage(lowMaDays);
+            HighMa = new MovingAverage(highMaDays);
             CurrentPosition = Position.Undecided;
         }
 

@@ -2,35 +2,48 @@
 using System.Text.Json.Nodes;
 using Wagmi.Cli.Model;
 using System.Linq;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Configuration;
+using System.Text;
 
 namespace Wagmi.Cli
 {
     internal class Program
     {
-        private static int LowMA = 0;
-        private static int HighMA = 0;
+        private static int CurrentLowMa;
+        private static int CurrentHighMa;
+
+        // Config values
+        private static int InitialInvestment;
+        private static int LowMaStart;
+        private static int LowMaEnd;
+        private static int HighMaStart;
+        private static int HighMaEnd;
+        private static bool SaveOutput;
 
         static void Main(string[] args)
         {
+            InitConfig();
+
             var candles = new List<Candle>();
-            candles.AddRange(ParseJson(@"E:\Code\Wagmi\Data\BTC2.json"));
-            candles.AddRange(ParseJson(@"E:\Code\Wagmi\Data\BTC.json"));
+
+            candles.AddRange(ParseJson(@"Data/BTC2.json"));
+            candles.AddRange(ParseJson(@"Data/BTC.json"));
             var orderedCandles = candles.OrderBy(c => c.Time).ToList();
 
             var investmentResults = new List<InvestmentResult>();
 
-            for (int lowMa = 5; lowMa <= 10; lowMa++)
+            for (int lowMa = LowMaStart; lowMa <= LowMaEnd; lowMa++)
             {
-                for (int highMa = 20; highMa <= 40; highMa++)
+                for (int highMa = HighMaStart; highMa <= HighMaEnd; highMa++)
                 {
-                    LowMA = lowMa;
-                    HighMA = highMa;
+                    CurrentLowMa = lowMa;
+                    CurrentHighMa = highMa;
 
                     CalculateMovingAverages(candles);
-                    var result = Invest(candles);
+                    var result = RunAnalysis(candles);
                     investmentResults.Add(result);
 
-                    
                     Console.WriteLine($"Low MA: {result.LowMa}");
                     Console.WriteLine($"High MA: {result.HighMa}");
                     Console.WriteLine($"Result: {result.Usd}");
@@ -58,17 +71,29 @@ namespace Wagmi.Cli
                 Console.WriteLine();
             }
 
+            if (SaveOutput)
+            {
+                var builder = new StringBuilder();
+                builder.AppendLine($"LowMa;HighMa;Usd;Btc;Trades");
+                foreach (var result in investmentResults)
+                    builder.AppendLine($"{result.LowMa};{result.HighMa};{result.Usd.ToString()};{result.Btc.ToString()};{result.Trades.Count()}");
+
+                File.WriteAllText("out.csv", builder.ToString());
+
+                Console.WriteLine("Summary saved to out.csv");
+            }
+
             Console.ReadLine();
         }
 
-        private static InvestmentResult Invest(List<Candle> candles)
+        private static InvestmentResult RunAnalysis(List<Candle> candles)
         {
-            double usdHolding = 10000;
+            double usdHolding = InitialInvestment;
             double btcHolding = 0;
 
-            var investmentResult = new InvestmentResult(LowMA, HighMA);
+            var investmentResult = new InvestmentResult(CurrentLowMa, CurrentHighMa);
 
-            for (int i = HighMA; i < candles.Count; i++)
+            for (int i = CurrentHighMa; i < candles.Count; i++)
             {
                 var currentCandle = candles[i];
                 var previousCandle = candles[i - 1];
@@ -77,13 +102,17 @@ namespace Wagmi.Cli
                 {
                     btcHolding = usdHolding / currentCandle.Close;
                     usdHolding = 0;
-                    investmentResult.Trades.Add(new Trade() { BtcAquired = btcHolding, UsdAquired = usdHolding, Price = currentCandle.Close, TradeDate = currentCandle.Time, TradeType = TradeType.Buy });
+
+                    var trade = new Trade() { BtcAquired = btcHolding, UsdAquired = usdHolding, Price = currentCandle.Close, TradeDate = currentCandle.Time, TradeType = TradeType.Buy };
+                    investmentResult.Trades.Add(trade);
                 }
                 else if (previousCandle.CurrentPosition == Position.Long && currentCandle.CurrentPosition == Position.Short && btcHolding > 0)
                 {
                     usdHolding = currentCandle.Close * btcHolding;
                     btcHolding = 0;
-                    investmentResult.Trades.Add(new Trade() { BtcAquired = btcHolding, UsdAquired = usdHolding, Price = currentCandle.Close, TradeDate = currentCandle.Time, TradeType = TradeType.Sell });
+
+                    var trade = new Trade() { BtcAquired = btcHolding, UsdAquired = usdHolding, Price = currentCandle.Close, TradeDate = currentCandle.Time, TradeType = TradeType.Sell };
+                    investmentResult.Trades.Add(trade);
                 }
             }
 
@@ -95,25 +124,25 @@ namespace Wagmi.Cli
 
         private static void CalculateMovingAverages(List<Candle> candles)
         {
-            for (int i = HighMA; i < candles.Count; i++)
+            for (int i = CurrentHighMa; i < candles.Count; i++)
             {
                 var currentCandle = candles[i];
-                currentCandle.InitializeMa(LowMA, HighMA);
+                currentCandle.InitializeMa(CurrentLowMa, CurrentHighMa);
 
                 int n = 0;
-                while (n < LowMA)
+                while (n < CurrentLowMa)
                 {
-                    currentCandle.LowMA.AddCandle(candles[i - n]);
+                    currentCandle.LowMa.AddCandle(candles[i - n]);
                     n++;
                 }
                 n = 0;
-                while (n < HighMA)
+                while (n < CurrentHighMa)
                 {
-                    currentCandle.HighMA.AddCandle(candles[i - n]);
+                    currentCandle.HighMa.AddCandle(candles[i - n]);
                     n++;
                 }
 
-                if (currentCandle.LowMA.Value > currentCandle.HighMA.Value)
+                if (currentCandle.LowMa.Value > currentCandle.HighMa.Value)
                     currentCandle.CurrentPosition = Position.Long;
                 else
                     currentCandle.CurrentPosition = Position.Short;
@@ -142,6 +171,22 @@ namespace Wagmi.Cli
             }
 
             return candles;
+        }
+
+        private static void InitConfig()
+        {
+            IConfiguration config = new ConfigurationBuilder()
+                .AddJsonFile("appSettings.json")
+                .Build();
+
+            LowMaStart = config.GetRequiredSection("lowMaRange").GetValue<int>("start");
+            LowMaEnd = config.GetRequiredSection("lowMaRange").GetValue<int>("end");
+
+            HighMaStart = config.GetRequiredSection("highMaRange").GetValue<int>("start");
+            HighMaEnd = config.GetRequiredSection("highMaRange").GetValue<int>("end");
+
+            InitialInvestment = config.GetRequiredSection("initialInvestment").Get<int>();
+            SaveOutput = config.GetRequiredSection("saveOutput").Get<bool>();
         }
     }
 }
