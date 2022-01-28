@@ -25,6 +25,15 @@ namespace Wagmi.Cli
         {
             InitConfig();
 
+            Console.WriteLine($"Low moving average range: {LowMaStart} - {LowMaEnd}");
+            Console.WriteLine($"High moving average range: {HighMaStart} - {HighMaEnd}");
+            Console.WriteLine($"Investing {InitialInvestment.ToString("N2")} USD");
+            Console.WriteLine();
+            Console.WriteLine("Press enter to start..");
+            Console.WriteLine();
+
+            Console.ReadLine();
+
             var candles = new List<Candle>();
 
             candles.AddRange(ParseJson(@"Data/BTC2.json"));
