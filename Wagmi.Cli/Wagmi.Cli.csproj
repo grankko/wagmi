@@ -21,6 +21,9 @@
     <None Update="Data\BTC2.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="Data\gemini_BTCUSD_day.csv">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="Data\sample.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

@@ -36,8 +36,11 @@ namespace Wagmi.Cli
 
             var candles = new List<Candle>();
 
-            candles.AddRange(ParseJson(@"Data/BTC2.json"));
-            candles.AddRange(ParseJson(@"Data/BTC.json"));
+            //candles.AddRange(ParseJson(@"Data/BTC2.json"));
+            //candles.AddRange(ParseJson(@"Data/BTC.json"));
+
+            candles.AddRange(ParseCsv(@"Data/gemini_BTCUSD_day.csv"));
+
             var orderedCandles = candles.OrderBy(c => c.Time).ToList();
 
             var investmentResults = new List<InvestmentResult>();
@@ -49,11 +52,11 @@ namespace Wagmi.Cli
                     CurrentLowMa = lowMa;
                     CurrentHighMa = highMa;
 
-                    CalculateMovingAverages(candles);
-                    var result = RunAnalysis(candles);
+                    CalculateMovingAverages(orderedCandles);
+                    var result = RunAnalysis(orderedCandles);
                     investmentResults.Add(result);
 
-                    Console.WriteLine($"Analyzed {result.LowMa}/{result.HighMa}. Yield: {result.Usd.ToString("N2")} USD - {result.Btc.ToString("N2")} BTC");
+                    Console.WriteLine($"Analyzed {result.LowMa}/{result.HighMa}. Trades: {result.Trades.Count()}. Yield: {result.Usd.ToString("N2")} USD - {result.Btc.ToString("N2")} BTC");
                     Console.WriteLine();
 
                 }
@@ -63,11 +66,14 @@ namespace Wagmi.Cli
 
             Console.WriteLine("===== TOP RESULT =====");
             Console.WriteLine($"Best result: {topResult.Usd.ToString("N2")} USD");
+            Console.WriteLine($"Initial investment: {InitialInvestment.ToString("N2")} USD");
             Console.WriteLine($"Low MA: {topResult.LowMa}");
             Console.WriteLine($"High MA: {topResult.HighMa}");
+            Console.WriteLine($"Number of trades: {topResult.Trades.Count()}");
+            Console.WriteLine($"First trade: {topResult.Trades.First().TradeDate.ToShortDateString()}");
             Console.WriteLine();
             Console.WriteLine("=====   TRADES   =====");
-            foreach (var trade in topResult.Trades)
+            foreach (var trade in topResult.Trades.OrderBy(t => t.TradeDate))
             {
                 if (trade.TradeType == TradeType.Buy)
                     Console.WriteLine($"{trade.TradeDate.ToShortDateString()} - Buying at price {trade.Price}");
@@ -105,7 +111,7 @@ namespace Wagmi.Cli
                 var currentCandle = candles[i];
                 var previousCandle = candles[i - 1];
 
-                if (previousCandle.CurrentPosition == Position.Short && currentCandle.CurrentPosition == Position.Long)
+                if (previousCandle.CurrentPosition == Position.Short && currentCandle.CurrentPosition == Position.Long && usdHolding > 0)
                 {
                     btcHolding = usdHolding / currentCandle.Close;
                     usdHolding = 0;
@@ -170,13 +176,38 @@ namespace Wagmi.Cli
                     Close = candleObject["close"].GetValue<double>(),
                     High = candleObject["high"].GetValue<double>(),
                     Low = candleObject["low"].GetValue<double>(),
-                    Time = DateTimeOffset.FromUnixTimeSeconds(candleObject["time"].GetValue<int>()).DateTime
+                    Time = DateTimeOffset.FromUnixTimeSeconds(candleObject["time"].GetValue<long>()).DateTime
                 };
-
-                candle.Average = (candle.High + candle.Low) / 2;
                 candles.Add(candle);
             }
 
+            return candles;
+        }
+
+        private static List<Candle> ParseCsv(string path)
+        {
+            var candles = new List<Candle>();
+
+            string[] lines = File.ReadAllLines(path);
+            for (int i = 1; i < lines.Length; i++)
+            {
+                var line = lines[i];
+                var values = line.Split(',');
+
+                var candle = new Candle()
+                {
+                    Close = double.Parse(values[6], NumberStyles.Any, CultureInfo.InvariantCulture),
+                    High = double.Parse(values[4], NumberStyles.Any, CultureInfo.InvariantCulture),
+                    Low = double.Parse(values[5], NumberStyles.Any, CultureInfo.InvariantCulture), 
+                };
+
+                if (values[0].Length == 13)
+                    candle.Time = DateTimeOffset.FromUnixTimeMilliseconds(long.Parse(values[0])).DateTime;
+                else
+                    candle.Time = DateTimeOffset.FromUnixTimeSeconds(long.Parse(values[0])).DateTime;
+
+                candles.Add(candle);
+            }
             return candles;
         }
 
